@@ -2,6 +2,9 @@ import math
 import torch
 from torch import nn
 
+from composition import CompositionalLayer
+from text_to_embedding import TextEmbeddingUsingBert
+
 
 class Generator(nn.Module):
     def __init__(self, scale_factor):
@@ -21,19 +24,55 @@ class Generator(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64)
         )
+
+        ## Will have to make changes here for compositional layer
+        self.text_to_embedding = TextEmbeddingUsingBert()
+        self.compositional_layer = CompositionalLayer()        
+        #
+        self.conversion_layer = nn.Sequential(
+            nn.Linear(64*512*512, 768)
+        )
+        
+        self.revert_layer = nn.Sequential(
+            nn.Linear(768, 64*512*512)
+        )
+        # TODO: make a sequential layer to change the size of block7 output to [768,1]
+
+
         block8 = [UpsampleBLock(64, 2) for _ in range(upsample_block_num)]
         block8.append(nn.Conv2d(64, 3, kernel_size=9, padding=4))
         self.block8 = nn.Sequential(*block8)
 
-    def forward(self, x):
+    def forward(self, x, text):
         block1 = self.block1(x)
         block2 = self.block2(block1)
         block3 = self.block3(block2)
         block4 = self.block4(block3)
         block5 = self.block5(block4)
         block6 = self.block6(block5)
-        block7 = self.block7(block6)
-        block8 = self.block8(block1 + block7)
+        img_embed = self.block7(block6)
+        ## here too
+        # TODO: make the image embedding and text embedding of the same dimension as in the paper
+        text_embed = self.text_to_embedding.text_to_embedding(text)
+
+        img_embed = img_embed.view(img_embed.size(0), -1)
+        text_embed = text_embed.view(text_embed.size(0), -1)
+
+        batch_size = img_embed.size(0)
+        filters = img_embed.size(1)
+        H = img_embed.size(2)
+        W = img_embed.size(3)
+
+        img_embed = self.conversion_layer(img_embed)
+
+        composition = self.compositional_layer.compose_img_text(img_embed, text_embed)
+
+        composition = self.revert_layer(composition)
+
+        composition = composition.view(batch_size, filters, H, W)
+        ##
+        
+        block8 = self.block8(block1 + composition)
 
         return (torch.tanh(block8) + 1) / 2
 

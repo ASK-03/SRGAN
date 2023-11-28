@@ -57,7 +57,7 @@ if __name__ == '__main__':
     
         netG.train()
         netD.train()
-        for data, target in train_bar:
+        for data, text_prompt, target in train_bar:
             g_update_first = True
             batch_size = data.size(0)
             running_results['batch_sizes'] += batch_size
@@ -66,12 +66,14 @@ if __name__ == '__main__':
             # (1) Update D network: maximize D(x)-1-D(G(z))
             ###########################
             real_img = Variable(target)
+            z = Variable(data)
+            prompt = Variable(text_prompt)
             if torch.cuda.is_available():
                 real_img = real_img.cuda()
-            z = Variable(data)
-            if torch.cuda.is_available():
                 z = z.cuda()
-            fake_img = netG(z)
+                prompt = prompt.cuda()
+
+            fake_img = netG(z, prompt)
     
             netD.zero_grad()
             real_out = netD(real_img).mean()
@@ -85,13 +87,13 @@ if __name__ == '__main__':
             ###########################
             netG.zero_grad()
             ## The two lines below are added to prevent runetime error in Google Colab ##
-            fake_img = netG(z)
+            fake_img = netG(z, prompt)
             fake_out = netD(fake_img).mean()
             ##
             g_loss = generator_criterion(fake_out, fake_img, real_img)
             g_loss.backward()
             
-            fake_img = netG(z)
+            fake_img = netG(z, prompt)
             fake_out = netD(fake_img).mean()
             
             
@@ -118,15 +120,17 @@ if __name__ == '__main__':
             val_bar = tqdm(val_loader)
             valing_results = {'mse': 0, 'ssims': 0, 'psnr': 0, 'ssim': 0, 'batch_sizes': 0}
             val_images = []
-            for val_lr, val_hr_restore, val_hr in val_bar:
+            for val_lr, val_hr_restore, val_hr, text_prompt in val_bar:
                 batch_size = val_lr.size(0)
                 valing_results['batch_sizes'] += batch_size
                 lr = val_lr
                 hr = val_hr
+                prompt = text_prompt
                 if torch.cuda.is_available():
                     lr = lr.cuda()
                     hr = hr.cuda()
-                sr = netG(lr)
+                    prompt = prompt.cuda()
+                sr = netG(lr, prompt)
         
                 batch_mse = ((sr - hr) ** 2).data.mean()
                 valing_results['mse'] += batch_mse * batch_size
@@ -149,7 +153,7 @@ if __name__ == '__main__':
                 image = utils.make_grid(image, nrow=3, padding=5)
                 utils.save_image(image, out_path + 'epoch_%d_index_%d.png' % (epoch, index), padding=5)
                 index += 1
-    
+    text_prompt = self.text_instructions[index]
         # save model parameters
         torch.save(netG.state_dict(), 'epochs/netG_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch))
         torch.save(netD.state_dict(), 'epochs/netD_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch))
