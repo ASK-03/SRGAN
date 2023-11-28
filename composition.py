@@ -21,12 +21,12 @@ class CompositionalLayer(nn.Module):
         super(CompositionalLayer, self).__init__()
         self.a = nn.Parameter(torch.tensor([1.0, 10.0, 1.0, 1.0]))
         self.gated_feature_composer = nn.Sequential(
-            ConCatModule(), nn.BatchNorm1d(2 * 512), nn.ReLU(),
-            nn.Linear(2 * 512, 512))
+            ConCatModule(), nn.BatchNorm1d(2 * 768), nn.ReLU(),
+            nn.Linear(2 * 768, 768))
         self.res_info_composer = nn.Sequential(
-            ConCatModule(), nn.BatchNorm1d(2 * 512), nn.ReLU(),
-            nn.Linear(2 * 512, 2 * 512), nn.ReLU(),
-            nn.Linear(2 * 512, 512))
+            ConCatModule(), nn.BatchNorm1d(2 * 768), nn.ReLU(),
+            nn.Linear(2 * 768, 2 * 768), nn.ReLU(),
+            nn.Linear(2 * 768, 768))
 
     def compose_img_text(self, img_embed, text_embed):
         return self.compose_img_text_features(img_features, text_features)

@@ -3,7 +3,6 @@ import torch
 from torch import nn
 
 from composition import CompositionalLayer
-from text_to_embedding import TextEmbeddingUsingBert
 
 
 class Generator(nn.Module):
@@ -30,11 +29,25 @@ class Generator(nn.Module):
         self.compositional_layer = CompositionalLayer()        
         #
         self.conversion_layer = nn.Sequential(
-            nn.Linear(64*512*512, 768)
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Flatten(),
+            nn.Linear(64 * (512 // 4) * (512 // 4), 768),
         )
         
         self.revert_layer = nn.Sequential(
-            nn.Linear(768, 64*512*512)
+            nn.Linear(768, 64 * (512 // 4) * (512 // 4)),
+            nn.ReLU(),
+            nn.Unflatten(1, (64, 512 // 2, 512 // 2)),  # Unflatten to reverse the flatten operation
+            nn.ConvTranspose2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2, mode='nearest'),  # Upsample to reverse the max pooling operation
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),  # Assuming the output has 1 channel
+            nn.Sigmoid()
         )
         # TODO: make a sequential layer to change the size of block7 output to [768,1]
 
@@ -43,7 +56,7 @@ class Generator(nn.Module):
         block8.append(nn.Conv2d(64, 3, kernel_size=9, padding=4))
         self.block8 = nn.Sequential(*block8)
 
-    def forward(self, x, text):
+    def forward(self, x, text_embed):
         block1 = self.block1(x)
         block2 = self.block2(block1)
         block3 = self.block3(block2)
@@ -53,9 +66,7 @@ class Generator(nn.Module):
         img_embed = self.block7(block6)
         ## here too
         # TODO: make the image embedding and text embedding of the same dimension as in the paper
-        text_embed = self.text_to_embedding.text_to_embedding(text)
 
-        img_embed = img_embed.view(img_embed.size(0), -1)
         text_embed = text_embed.view(text_embed.size(0), -1)
 
         batch_size = img_embed.size(0)
