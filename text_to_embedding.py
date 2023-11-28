@@ -7,8 +7,7 @@ from pytorch_transformers import BertModel
 class TextEmbeddingUsingBert():
     def __init__(self):
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        self.model = BertModel.from_pretrained('bert-base uncased',output_hidden_states=True)
-        self.model.eval()
+        self.model = BertModel.from_pretrained('bert-base-uncased', output_hidden_states=True)
 
     def add_special_tokens(self, text):
         return "[CLS] " + text + " [SEP]"

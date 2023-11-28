@@ -49,7 +49,7 @@ class TrainDatasetFromFolder(Dataset):
 
         txt_file_path = dataset_dir + "/prompts.txt"
         with open(txt_file_path, 'r') as file:
-            prompts_list = file.readlines()
+            prompt_list = file.readlines()
         self.text_instructions = [ prompt.strip() for prompt in prompt_list ]
 
     def __getitem__(self, index):
@@ -59,7 +59,7 @@ class TrainDatasetFromFolder(Dataset):
         return lr_image, text_prompt, hr_image
 
     def __len__(self):
-        return len(self.image_filenames)
+        return len(self.input_images)
 
 
 class ValDatasetFromFolder(Dataset):
@@ -71,7 +71,7 @@ class ValDatasetFromFolder(Dataset):
 
         txt_file_path = dataset_dir + "/prompts.txt"
         with open(txt_file_path, 'r') as file:
-            prompts_list = file.readlines()
+            prompt_list = file.readlines()
         self.text_instructions = [ prompt.strip() for prompt in prompt_list ]
 
     def __getitem__(self, index):
@@ -88,7 +88,7 @@ class ValDatasetFromFolder(Dataset):
         return ToTensor()(lr_image), ToTensor()(hr_restore_img), ToTensor()(hr_image), text_prompt
 
     def __len__(self):
-        return len(self.image_filenames)
+        return len(self.input_images)
 
 
 class TestDatasetFromFolder(Dataset):

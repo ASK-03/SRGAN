@@ -2,10 +2,8 @@
 
 import numpy as np
 import torch
-import torchvision
+from torch import nn
 import torch.nn.functional as F
-import text_model
-import torch_functions
 
 
 class ConCatModule(nn.Module):
