@@ -7,18 +7,18 @@ import torch.nn.functional as F
 
 
 class ConCatModule(nn.Module):
+    def __init__(self):
+        super(ConCatModule, self).__init__()
 
-  def __init__(self):
-    super(ConCatModule, self).__init__()
-
-  def forward(self, x):
-    x = torch.cat(x, dim=1)
-    return x
+    def forward(self, x):
+        x = torch.cat(x, dim=1)
+        return x
 
 
 class CompositionalLayer(nn.Module):
     def __init__(self):
         super(CompositionalLayer, self).__init__()
+        print("In compositional layer")
         self.a = nn.Parameter(torch.tensor([1.0, 10.0, 1.0, 1.0]))
         self.gated_feature_composer = nn.Sequential(
             ConCatModule(), nn.BatchNorm1d(2 * 768), nn.ReLU(),
@@ -29,7 +29,7 @@ class CompositionalLayer(nn.Module):
             nn.Linear(2 * 768, 768))
 
     def compose_img_text(self, img_embed, text_embed):
-        return self.compose_img_text_features(img_features, text_features)
+        return self.compose_img_text_features(img_embed, text_embed)
 
     def compose_img_text_features(self, img_features, text_features):
         f1 = self.gated_feature_composer((img_features, text_features))

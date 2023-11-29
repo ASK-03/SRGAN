@@ -1,12 +1,10 @@
 from os import listdir
 from os.path import join
 import io
-
 from PIL import Image
 from torch.utils.data.dataset import Dataset
 from torchvision.transforms import Compose, RandomCrop, ToTensor, ToPILImage, CenterCrop, Resize
 from text_to_embedding import TextEmbeddingUsingBert
-
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in ['.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG'])
@@ -19,7 +17,7 @@ def calculate_valid_crop_size(crop_size, upscale_factor):
 def train_hr_transform(crop_size):
     return Compose([
         ToPILImage(),
-        RandomCrop(crop_size),
+        RandomCrop(512),
         ToTensor(),
     ])
 
@@ -27,7 +25,7 @@ def train_hr_transform(crop_size):
 def train_lr_transform(crop_size, upscale_factor):
     return Compose([
         ToPILImage(),
-        Resize(crop_size // upscale_factor, interpolation=Image.BICUBIC),
+        Resize(512 // 4, interpolation=Image.BICUBIC),
         ToTensor()
     ])
 
@@ -49,6 +47,7 @@ class TrainDatasetFromFolder(Dataset):
         crop_size = calculate_valid_crop_size(crop_size, upscale_factor)
         self.hr_transform = train_hr_transform(crop_size)
         self.lr_transform = train_lr_transform(crop_size, upscale_factor)
+
         self.text_to_embeddings = TextEmbeddingUsingBert()
 
         txt_file_path = dataset_dir + "/prompts.txt"
@@ -74,23 +73,23 @@ class ValDatasetFromFolder(Dataset):
         self.edited_images = [join(dataset_dir + "/edited_images", x) for x in listdir(dataset_dir + "/edited_images") if is_image_file(x)]
         self.text_to_embeddings = TextEmbeddingUsingBert()
 
+
         txt_file_path = dataset_dir + "/prompts.txt"
         with open(txt_file_path, 'r') as file:
             prompt_list = file.readlines()
         self.text_instructions = [ prompt.strip() for prompt in prompt_list ]
 
     def __getitem__(self, index):
-        hr_image = Image.open(ToTensor()(self.edited_images[index]))
-        w, h = hr_image.size
-        crop_size = calculate_valid_crop_size(min(w, h), self.upscale_factor)
-        lr_scale = Resize(crop_size // self.upscale_factor, interpolation=Image.BICUBIC)
-        hr_scale = Resize(crop_size, interpolation=Image.BICUBIC)
-        real_image = Image.open(ToTensor()(self.input_images[index]))
-        real_image = CenterCrop(crop_size)(real_image)
+        hr_image = ToTensor()(Image.open(self.edited_images[index]))
+        channels, w, h = hr_image.size()
+        lr_scale = Resize(512 // 4, interpolation=Image.BICUBIC)
+        hr_scale = Resize(512, interpolation=Image.BICUBIC)
+        real_image = ToTensor()(Image.open(self.input_images[index]))
+        real_image = CenterCrop(512)(real_image)
         lr_image = lr_scale(real_image)
         hr_restore_img = hr_scale(lr_image)
         text_prompt = self.text_to_embeddings.text_to_embedding(self.text_instructions[index])
-        return ToTensor()(lr_image), ToTensor()(hr_restore_img), ToTensor()(hr_image), text_prompt
+        return lr_image, hr_restore_img, hr_image, text_prompt
 
     def __len__(self):
         return len(self.input_images)

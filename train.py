@@ -16,7 +16,7 @@ from loss import GeneratorLoss
 from model import Generator, Discriminator
 
 parser = argparse.ArgumentParser(description='Train Super Resolution Models')
-parser.add_argument('--crop_size', default=88, type=int, help='training images crop size')
+parser.add_argument('--crop_size', default=512, type=int, help='training images crop size')
 parser.add_argument('--upscale_factor', default=4, type=int, choices=[2, 4, 8],
                     help='super resolution upscale factor')
 parser.add_argument('--num_epochs', default=100, type=int, help='train epoch number')
@@ -33,9 +33,8 @@ if __name__ == '__main__':
     val_set = ValDatasetFromFolder('data/val', upscale_factor=UPSCALE_FACTOR)
     train_loader = DataLoader(dataset=train_set, num_workers=4, batch_size=64, shuffle=True)
     val_loader = DataLoader(dataset=val_set, num_workers=4, batch_size=1, shuffle=False)
-    print("dataloaders")
     
-    print("starting genertors")
+    print("starting generator")
     netG = Generator(UPSCALE_FACTOR)
     print('# generator parameters:', sum(param.numel() for param in netG.parameters()))
     netD = Discriminator()
@@ -67,9 +66,11 @@ if __name__ == '__main__':
             ############################
             # (1) Update D network: maximize D(x)-1-D(G(z))
             ###########################
+            
             real_img = Variable(target)
             z = Variable(data)
             prompt = Variable(text_prompt)
+            
             if torch.cuda.is_available():
                 real_img = real_img.cuda()
                 z = z.cuda()
@@ -122,7 +123,7 @@ if __name__ == '__main__':
             val_bar = tqdm(val_loader)
             valing_results = {'mse': 0, 'ssims': 0, 'psnr': 0, 'ssim': 0, 'batch_sizes': 0}
             val_images = []
-            for val_lr, val_hr_restore, val_hr, text_prompt in val_bar:
+            for val_lr, val_hr, text_prompt in val_bar:
                 batch_size = val_lr.size(0)
                 valing_results['batch_sizes'] += batch_size
                 lr = val_lr
@@ -155,7 +156,6 @@ if __name__ == '__main__':
                 image = utils.make_grid(image, nrow=3, padding=5)
                 utils.save_image(image, out_path + 'epoch_%d_index_%d.png' % (epoch, index), padding=5)
                 index += 1
-
         # save model parameters
         torch.save(netG.state_dict(), 'epochs/netG_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch))
         torch.save(netD.state_dict(), 'epochs/netD_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch))
