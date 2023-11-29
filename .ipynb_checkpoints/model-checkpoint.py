@@ -26,6 +26,8 @@ class Generator(nn.Module):
         )
 
         ## Will have to make changes here for compositional layer
+        self.text_to_embedding = TextEmbeddingUsingBert()
+        print("Out of TextEmbedding Class!")
         self.compositional_layer = CompositionalLayer()        
         print("out of compositional layer")
     
@@ -33,22 +35,26 @@ class Generator(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Flatten(),
-            nn.Linear(262144, 768),
+            nn.Linear(64 * (512 // 4) * (512 // 4), 768),
         )
 
         print("conversion layer moade")
         
         self.revert_layer = nn.Sequential(
-            nn.Linear(768, 262144),
-            nn.Unflatten(1, (64, 64, 64)),  # Assuming the input image size is 64x64
+            nn.Linear(768, 64 * (512 // 4) * (512 // 4)),
+            nn.ReLU(),
+            nn.Unflatten(1, (64, 512 // 2, 512 // 2)),  # Unflatten to reverse the flatten operation
             nn.ConvTranspose2d(64, 64, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.Upsample(scale_factor=2, mode='nearest'),  # Adjust mode based on your preference
-            nn.ConvTranspose2d(64, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
+            nn.Upsample(scale_factor=2, mode='nearest'),  # Upsample to reverse the max pooling operation
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),  # Assuming the output has 1 channel
+            nn.Sigmoid()
         )
-        
+
         print("revert layer done")
 
         block8 = [UpsampleBLock(64, 2) for _ in range(upsample_block_num)]
@@ -57,7 +63,7 @@ class Generator(nn.Module):
         print("block8 done!")
         return 
 
-    def forward(self, x, text_embed):
+    def forward(self, x, text):
         block1 = self.block1(x)
         block2 = self.block2(block1)
         block3 = self.block3(block2)
@@ -67,14 +73,16 @@ class Generator(nn.Module):
         img_embed = self.block7(block6)
         ## here too
         # TODO: make the image embedding and text embedding of the same dimension as in the paper
-        
+        text_embed = self.text_to_embedding.text_to_embedding(text)
+
+        img_embed = img_embed.view(img_embed.size(0), -1)
+        text_embed = text_embed.view(text_embed.size(0), -1)
+
         batch_size = img_embed.size(0)
         filters = img_embed.size(1)
         H = img_embed.size(2)
         W = img_embed.size(3)
 
-        text_embed = text_embed.view(text_embed.size(0), -1)
-        
         img_embed = self.conversion_layer(img_embed)
 
         composition = self.compositional_layer.compose_img_text(img_embed, text_embed)
