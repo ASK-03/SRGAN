@@ -29,7 +29,11 @@ class TextEmbeddingUsingBert():
 
         with torch.no_grad():
             output = self.model(indexed_tokens)
+<<<<<<< HEAD
             last_hidden_state = output[1]
+=======
+            last_hidden_state = output[0]
+>>>>>>> fd9101f7274f42a791c10271ab1a35e283b827a1
             text_embedding = last_hidden_state
         
         return text_embedding

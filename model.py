@@ -3,7 +3,6 @@ import torch
 from torch import nn
 
 from composition import CompositionalLayer
-from text_to_embedding import TextEmbeddingUsingBert
 
 
 class Generator(nn.Module):
@@ -33,13 +32,22 @@ class Generator(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
+<<<<<<< HEAD
             nn.Flatten(),
             nn.Linear(262144, 768),
+=======
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Flatten(),
+            nn.Linear(64 * (512 // 4) * (512 // 4), 768),
+>>>>>>> fd9101f7274f42a791c10271ab1a35e283b827a1
         )
 
         print("conversion layer moade")
         
         self.revert_layer = nn.Sequential(
+<<<<<<< HEAD
             nn.Linear(768, 262144),
             nn.Unflatten(1, (64, 64, 64)),  # Assuming the input image size is 64x64
             nn.ConvTranspose2d(64, 64, kernel_size=3, padding=1),
@@ -47,6 +55,16 @@ class Generator(nn.Module):
             nn.Upsample(scale_factor=2, mode='nearest'),  # Adjust mode based on your preference
             nn.ConvTranspose2d(64, 64, kernel_size=3, padding=1),
             nn.ReLU(),
+=======
+            nn.Linear(768, 64 * (512 // 4) * (512 // 4)),
+            nn.ReLU(),
+            nn.Unflatten(1, (64, 512 // 2, 512 // 2)),  # Unflatten to reverse the flatten operation
+            nn.ConvTranspose2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2, mode='nearest'),  # Upsample to reverse the max pooling operation
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),  # Assuming the output has 1 channel
+            nn.Sigmoid()
+>>>>>>> fd9101f7274f42a791c10271ab1a35e283b827a1
         )
         
         print("revert layer done")
@@ -67,7 +85,13 @@ class Generator(nn.Module):
         img_embed = self.block7(block6)
         ## here too
         # TODO: make the image embedding and text embedding of the same dimension as in the paper
+<<<<<<< HEAD
         
+=======
+
+        text_embed = text_embed.view(text_embed.size(0), -1)
+
+>>>>>>> fd9101f7274f42a791c10271ab1a35e283b827a1
         batch_size = img_embed.size(0)
         filters = img_embed.size(1)
         H = img_embed.size(2)
